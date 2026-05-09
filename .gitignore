@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual env
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Output files (generated, not source)
+输出结果/
+
+# Input data (user-specific, not source)
+原始发票/
+原始截图/
+
+# Temp files
+_*.txt
+_*.json
+
+# Claude
+.claude/
