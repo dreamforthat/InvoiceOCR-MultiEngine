@@ -32,7 +32,9 @@ curl -s http://localhost:11434/api/tags >/dev/null 2>&1
 if errorlevel 1 (
     echo WARNING: Ollama not running!
     echo Install: https://ollama.com/download
-    echo Then run: ollama pull minicpm-v:8b
+    echo Then run:
+    echo   ollama pull lukey03/qwen3.5-9b-abliterated-vision:latest
+    echo   ollama pull DeepSeek-OCR:latest
 ) else (
     echo Ollama is running
 )

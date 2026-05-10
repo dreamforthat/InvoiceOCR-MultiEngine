@@ -18,6 +18,9 @@ echo   [4] Local (EasyOCR)
 echo   [5] Qwen Vision Model
 echo   [6] EasyOCR + Qwen Merge
 echo.
+echo   --- Merge ---
+echo   [10] Invoice Cross-Vote Merge (3 engines)
+echo.
 echo   --- Batch ---
 echo   [7] Run ALL
 echo   [8] Run Invoice Only (all 3 methods)
@@ -39,6 +42,7 @@ if "%choice%"=="6" goto order_merge
 if "%choice%"=="7" goto all
 if "%choice%"=="8" goto inv_all
 if "%choice%"=="9" goto order_all
+if "%choice%"=="10" goto invoice_merge
 if "%choice%"=="0" goto end
 
 echo Invalid choice, try again.
@@ -152,6 +156,14 @@ echo.
 echo ========================================
 echo        ORDER ALL DONE!
 echo ========================================
+echo.
+pause
+goto menu
+
+:invoice_merge
+echo.
+echo [Invoice Cross-Vote Merge]
+python merge_invoice_ocr.py
 echo.
 pause
 goto menu

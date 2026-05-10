@@ -94,7 +94,7 @@ def find_amount_after_discount(texts):
                     m = re.search(r'[\¥￥半]?\s*(\d+\.?\d+)', t['text'])
                     if m:
                         val = float(m.group(1))
-                        if val > 1:
+                        if val > 0:
                             if best is None or t['x'] > best[0]:
                                 best = (t['x'], m.group(1))
             if best:
@@ -112,18 +112,16 @@ def parse_order_from_texts(filename, texts):
         '优惠后金额': '',
     }
 
-    # 1. 店铺名称 - 找"进店逛逛"左侧，排除平台名（天猫/淘宝）和收货人
+    # 1. 店铺名称 - 多策略模式匹配（不依赖坐标）
+    # 策略1: "进店逛逛"左侧的文本
     for i, item in enumerate(texts):
         if '进店' in item['text'] and '逛' in item['text']:
-            # 从右往左找同一行的文本
             candidates = []
             for j in range(i-1, -1, -1):
                 prev = texts[j]
                 if abs(prev['y'] - item['y']) < 40 and prev['x'] < item['x']:
                     name = prev['text'].strip()
-                    # 清理尾部多余字符
                     name = re.sub(r'\s*>.*', '', name).strip()
-                    # 排除非店铺名
                     if (len(name) > 1
                         and name not in ('天猫', '淘宝', '天猫超市')
                         and '地址' not in name and '洪' not in name
@@ -132,6 +130,43 @@ def parse_order_from_texts(filename, texts):
             if candidates:
                 info['店铺名称'] = candidates[-1]
             break
+
+    # 策略2: "天猫/淘宝 XXX旗舰店" 格式（无"进店逛逛"按钮）
+    if not info['店铺名称']:
+        for item in texts:
+            m = re.search(r'(?:天猫|淘宝)\s*(.+?)(?:\s*>|$)', item['text'])
+            if m:
+                name = m.group(1).strip()
+                if len(name) > 1 and name not in ('超市',):
+                    info['店铺名称'] = name
+                    break
+
+    # 策略3: 收货信息下方、商品上方的独立文本行（店铺名可能在地址和商品之间）
+    if not info['店铺名称']:
+        # 找收货信息的y坐标
+        addr_y = None
+        for item in texts:
+            if '收货' in item['text'] or ('洪' in item['text'] and '86-' in item['text']):
+                addr_y = item['y']
+                break
+        # 找第一个商品的价格y坐标（实付款上方）
+        product_y = None
+        for item in texts:
+            if '实付款' in item['text']:
+                product_y = item['y']
+                break
+        if addr_y and product_y:
+            for item in texts:
+                if addr_y + 80 < item['y'] < product_y - 30:
+                    name = item['text'].strip()
+                    name = re.sub(r'\s*>.*', '', name).strip()
+                    if (len(name) > 2
+                        and name not in ('天猫', '淘宝', '天猫超市', '加入购物车', '申请售后', '闲鱼转卖', '查看发票')
+                        and not re.match(r'^[\d¥￥\s]+$', name)
+                        and '退货' not in name and '退款' not in name
+                        and '极速' not in name and '假一' not in name):
+                        info['店铺名称'] = name
+                        break
 
     # 2. 交易日期 - "订单信息 YYYY-MM-DD"
     for item in texts:

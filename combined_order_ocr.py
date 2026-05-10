@@ -89,7 +89,7 @@ def find_amount_after_discount(texts):
                     m = re.search(r'[\¥￥半]?\s*(\d+\.?\d+)', t['text'])
                     if m:
                         val = float(m.group(1))
-                        if val > 1:
+                        if val > 0:
                             if best is None or t['x'] > best[0]:
                                 best = (t['x'], m.group(1))
             if best:
@@ -100,7 +100,8 @@ def find_amount_after_discount(texts):
 def parse_order_easyocr(filename, texts):
     info = {'文件名': filename, '店铺名称': '', '交易日期': '', '交易唯一编号': '', '优惠后金额': ''}
 
-    # 1. 店铺名称
+    # 1. 店铺名称 - 多策略模式匹配（不依赖坐标）
+    # 策略1: "进店逛逛"左侧的文本
     for i, item in enumerate(texts):
         if '进店' in item['text'] and '逛' in item['text']:
             candidates = []
@@ -117,6 +118,41 @@ def parse_order_easyocr(filename, texts):
             if candidates:
                 info['店铺名称'] = candidates[-1]
             break
+
+    # 策略2: "天猫/淘宝 XXX旗舰店" 格式（无"进店逛逛"按钮）
+    if not info['店铺名称']:
+        for item in texts:
+            m = re.search(r'(?:天猫|淘宝)\s*(.+?)(?:\s*>|$)', item['text'])
+            if m:
+                name = m.group(1).strip()
+                if len(name) > 1 and name not in ('超市',):
+                    info['店铺名称'] = name
+                    break
+
+    # 策略3: 收货信息下方、商品上方的独立文本行
+    if not info['店铺名称']:
+        addr_y = None
+        for item in texts:
+            if '收货' in item['text'] or ('洪' in item['text'] and '86-' in item['text']):
+                addr_y = item['y']
+                break
+        product_y = None
+        for item in texts:
+            if '实付款' in item['text']:
+                product_y = item['y']
+                break
+        if addr_y and product_y:
+            for item in texts:
+                if addr_y + 80 < item['y'] < product_y - 30:
+                    name = item['text'].strip()
+                    name = re.sub(r'\s*>.*', '', name).strip()
+                    if (len(name) > 2
+                        and name not in ('天猫', '淘宝', '天猫超市', '加入购物车', '申请售后', '闲鱼转卖', '查看发票')
+                        and not re.match(r'^[\d¥￥\s]+$', name)
+                        and '退货' not in name and '退款' not in name
+                        and '极速' not in name and '假一' not in name):
+                        info['店铺名称'] = name
+                        break
 
     # 2. 交易日期
     for item in texts:
